@@ -1,52 +1,37 @@
-name: Build APK with Docker
+name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main, principal ]
+  workflow_dispatch: # هذا السطر يتيح لك تشغيل البناء بضغطة زر دون الحاجة لتغيير الكود
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    container:
-      image: kivy/buildozer:latest
+    runs-on: ubuntu-20.04 # استخدام نسخة مستقرة جداً من أوبونتو
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v3
 
-    - name: Create proper buildozer.spec
-      run: |
-        cat > buildozer.spec << 'EOF'
-[app]
-title = Dobli App
-package.name = dobli
-package.domain = com.marcbigard5
-source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
-version = 0.1
-requirements = python3,kivy
-orientation = portrait
-fullscreen = 0
-
-android.api = 33
-android.minapi = 21
-android.sdk = 33
-android.ndk = 25c
-android.accept_sdk_license = True
-android.archs = arm64-v8a
-
-[buildozer]
-log_level = 2
-warn_on_root = 1
-EOF
-
-    - name: Build APK
-      run: |
-        buildozer android debug
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
-        name: Dobli-App
+        python-version: '3.9' # إصدار بايثون الأكثر استقراراً مع Kivy و Buildozer
+
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libssl-dev cmake libffi-dev libgmp-dev
+        pip install --upgrade pip setuptools wheel
+        pip install "cython<3.0.0" buildozer
+
+    - name: Build with Buildozer
+      run: |
+        export BUILDOZER_WARN_ON_ROOT=0
+        # إجبار قبول التراخيص وحل مشكلات الـ NDK تلقائياً
+        yes | buildozer android debug
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: Dobli-App-Package
         path: bin/*.apk
