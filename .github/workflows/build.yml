@@ -28,7 +28,7 @@ jobs:
 
       - name: Build APK with Buildozer
         run: |
-          cd "Dobli App" && yes | buildozer android debug
+          yes | buildozer android debug
         env:
           BUILDOZER_WARN_ON_ROOT: 0
 
@@ -36,4 +36,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Dobli-App-Debug-APK
-          path: "Dobli App/bin/*.apk"
+          path: bin/*.apk
