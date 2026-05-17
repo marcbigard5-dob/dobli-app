@@ -1,0 +1,10 @@
+# Core
+aiohttp>=3.9.0
+
+# Browser automation (pick one)
+# playwright>=1.40.0
+# nodriver>=0.38.0
+
+# Optional
+# lxml>=4.9.0
+# beautifulsoup4>=4.12.0
