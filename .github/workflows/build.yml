@@ -8,66 +8,33 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    container:
+      image: kivy/buildozer:latest
 
     steps:
-    - name: Checkout Source Code
+    - name: Checkout
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Clean previous build artifacts
-      run: |
-        rm -rf .buildozer
-        rm -rf bin
-
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install System Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk \
-          autoconf libtool pkg-config zlib1g-dev libncurses5-dev \
-          libssl-dev cmake libffi-dev libgmp-dev
-
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        cmdline-tools-version: latest
-
-    - name: Accept SDK Licenses
-      run: |
-        yes | sdkmanager --licenses 2>/dev/null || true
-        mkdir -p $ANDROID_HOME/licenses
-        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_HOME/licenses/android-sdk-license
-        echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_HOME/licenses/android-sdk-preview-license
-
-    - name: Install build-tools
-      run: |
-        sdkmanager "build-tools;33.0.2" "platforms;android-33"
-
-    - name: Download NDK r25c
-      run: |
-        wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-        unzip -q android-ndk-r25c-linux.zip -d $HOME
-        echo "ANDROID_NDK_HOME=$HOME/android-ndk-r25c" >> $GITHUB_ENV
-
-    - name: Install Buildozer
-      run: |
-        pip install --upgrade pip buildozer cython
 
     - name: Build APK
       run: |
+        # إعداد الملف
+        buildozer init
+        
+        # تعديل buildozer.spec بشكل كامل
+        sed -i 's/title = .*/title = Dobli App/' buildozer.spec
+        sed -i 's/package.name = .*/package.name = dobli/' buildozer.spec
+        sed -i 's/package.domain = .*/package.domain = com.marcbigard5/' buildozer.spec
+        sed -i 's/# android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
+        sed -i 's/# android.api = 33/android.api = 33/' buildozer.spec
+        sed -i 's/# android.minapi = 24/android.minapi = 24/' buildozer.spec
+        sed -i 's/# android.sdk = 20/android.sdk = 33/' buildozer.spec
+        sed -i 's/requirements = .*/requirements = python3==3.10.12,kivy==2.3.0/' buildozer.spec
+        
+        # بناء التطبيق
         buildozer android debug
-      env:
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
-        ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: Dobli-App-Debug
-        path: bin/*.apk
+        name: Dobli-App
+        path: /home/user/host/**/bin/*.apk
