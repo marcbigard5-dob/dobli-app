@@ -35,10 +35,11 @@ jobs:
 
       - name: Build APK with Buildozer
         run: |
-          yes | buildozer android debug
+          buildozer android debug
         env:
           BUILDOZER_WARN_ON_ROOT: 0
           ANDROID_NDK_HOME: /home/runner/android-ndk-r25c
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
       - name: Upload Generated APK Artifact
         uses: actions/upload-artifact@v4
