@@ -8,33 +8,57 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: kivy/buildozer:latest
+    timeout-minutes: 60
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Buildozer
+      run: |
+        sudo apt update
+        sudo apt install -y zip unzip curl openjdk-17-jdk
+        pip install --upgrade pip buildozer cython
+
+    - name: Create buildozer.spec (direct fix)
+      run: |
+        cat > buildozer.spec << 'SPEC'
+[app]
+title = Dobli App
+package.name = dobli
+package.domain = com.marcbigard5
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas
+version = 0.1
+requirements = python3==3.10.12,kivy==2.3.0
+orientation = portrait
+osx.kivy_version = 2.2.0
+fullscreen = 0
+android.api = 33
+android.minapi = 24
+android.sdk = 33
+android.ndk = 25c
+android.ndk_api = 21
+android.accept_sdk_license = True
+android.archs = arm64-v8a, armeabi-v7a
+android.allow_backup = True
+[buildozer]
+log_level = 2
+warn_on_root = 1
+SPEC
+
     - name: Build APK
       run: |
-        # إعداد الملف
-        buildozer init
-        
-        # تعديل buildozer.spec بشكل كامل
-        sed -i 's/title = .*/title = Dobli App/' buildozer.spec
-        sed -i 's/package.name = .*/package.name = dobli/' buildozer.spec
-        sed -i 's/package.domain = .*/package.domain = com.marcbigard5/' buildozer.spec
-        sed -i 's/# android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
-        sed -i 's/# android.api = 33/android.api = 33/' buildozer.spec
-        sed -i 's/# android.minapi = 24/android.minapi = 24/' buildozer.spec
-        sed -i 's/# android.sdk = 20/android.sdk = 33/' buildozer.spec
-        sed -i 's/requirements = .*/requirements = python3==3.10.12,kivy==2.3.0/' buildozer.spec
-        
-        # بناء التطبيق
+        rm -rf .buildozer bin
         buildozer android debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: Dobli-App
-        path: /home/user/host/**/bin/*.apk
+        path: bin/*.apk
