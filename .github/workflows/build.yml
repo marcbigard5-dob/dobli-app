@@ -11,41 +11,63 @@ jobs:
     timeout-minutes: 60
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-    - name: Set up Python
+    - name: Clean previous build artifacts
+      run: |
+        rm -rf .buildozer
+        rm -rf bin
+
+    - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'
 
-    - name: Install dependencies
+    - name: Install System Dependencies
       run: |
-        sudo apt update
-        sudo apt install -y zip unzip curl openjdk-17-jdk
+        sudo apt-get update
+        sudo apt-get install -y git zip unzip openjdk-17-jdk \
+          autoconf libtool pkg-config zlib1g-dev libncurses5-dev \
+          libssl-dev cmake libffi-dev libgmp-dev
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        cmdline-tools-version: latest
+
+    - name: Accept SDK Licenses
+      run: |
+        yes | sdkmanager --licenses 2>/dev/null || true
+        mkdir -p $ANDROID_HOME/licenses
+        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_HOME/licenses/android-sdk-license
+        echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_HOME/licenses/android-sdk-preview-license
+
+    - name: Install build-tools
+      run: |
+        sdkmanager "build-tools;33.0.2" "platforms;android-33"
+
+    - name: Download NDK r25c
+      run: |
+        wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+        unzip -q android-ndk-r25c-linux.zip -d $HOME
+        echo "ANDROID_NDK_HOME=$HOME/android-ndk-r25c" >> $GITHUB_ENV
+
+    - name: Install Buildozer
+      run: |
         pip install --upgrade pip buildozer cython
-
-    - name: Configure Buildozer
-      run: |
-        buildozer init
-        # إصلاح buildozer.spec مباشرة من هنا
-        sed -i 's/# android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
-        sed -i 's/# android.api = 33/android.api = 33/g' buildozer.spec
-        sed -i 's/# android.minapi = 24/android.minapi = 24/g' buildozer.spec
-        sed -i 's/# android.sdk = 20/android.sdk = 33/g' buildozer.spec
-        sed -i 's/android.ndk = .*/android.ndk = 25c/g' buildozer.spec
 
     - name: Build APK
       run: |
-        # تنظيف أي ملفات سابقة
-        rm -rf .buildozer bin
-        # بناء التطبيق
-        buildozer -v android debug
+        buildozer android debug
       env:
-        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+        ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
 
     - name: Upload APK
-      if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: Dobli-App
+        name: Dobli-App-Debug
         path: bin/*.apk
