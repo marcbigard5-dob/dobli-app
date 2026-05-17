@@ -1,37 +1,45 @@
-name: Build Android APK
-
+name: CI
 on:
   push:
-    branches: [ main, principal ]
-  workflow_dispatch: # هذا السطر يتيح لك تشغيل البناء بضغطة زر دون الحاجة لتغيير الكود
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: ubuntu-20.04 # استخدام نسخة مستقرة جداً من أوبونتو
-
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout code with submodules
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        submodules: 'recursive'
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.9' # إصدار بايثون الأكثر استقراراً مع Kivy و Buildozer
+        python-version: '3.9'
 
-    - name: Install System Dependencies
+    - name: Install system dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libssl-dev cmake libffi-dev libgmp-dev
-        pip install --upgrade pip setuptools wheel
-        pip install "cython<3.0.0" buildozer
+        sudo apt update
+        sudo apt install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
 
-    - name: Build with Buildozer
+    - name: Install Buildozer and Cython
       run: |
-        export BUILDOZER_WARN_ON_ROOT=0
-        # إجبار قبول التراخيص وحل مشكلات الـ NDK تلقائياً
+        pip install --upgrade pip
+        pip install buildozer cython
+
+    - name: Build APK with Buildozer
+      run: |
         yes | buildozer android debug
+      env:
+        APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
+        BUILD_NUMBER: ${{ github.run_number }}
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v3
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
       with:
-        name: Dobli-App-Package
+        name: my-kivy-app
         path: bin/*.apk
