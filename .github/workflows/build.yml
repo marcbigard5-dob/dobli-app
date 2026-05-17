@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build APK with Docker
 
 on:
   push:
@@ -8,26 +8,16 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    container:
+      image: kivy/buildozer:latest
 
     steps:
-    - name: Checkout
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    - name: Install Buildozer
+    - name: Create proper buildozer.spec
       run: |
-        sudo apt update
-        sudo apt install -y zip unzip curl openjdk-17-jdk
-        pip install --upgrade pip buildozer cython
-
-    - name: Create buildozer.spec (direct fix)
-      run: |
-        cat > buildozer.spec << 'SPEC'
+        cat > buildozer.spec << 'EOF'
 [app]
 title = Dobli App
 package.name = dobli
@@ -35,26 +25,24 @@ package.domain = com.marcbigard5
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
-requirements = python3==3.10.12,kivy==2.3.0
+requirements = python3,kivy
 orientation = portrait
-osx.kivy_version = 2.2.0
 fullscreen = 0
+
 android.api = 33
-android.minapi = 24
+android.minapi = 21
 android.sdk = 33
 android.ndk = 25c
-android.ndk_api = 21
 android.accept_sdk_license = True
-android.archs = arm64-v8a, armeabi-v7a
-android.allow_backup = True
+android.archs = arm64-v8a
+
 [buildozer]
 log_level = 2
 warn_on_root = 1
-SPEC
+EOF
 
     - name: Build APK
       run: |
-        rm -rf .buildozer bin
         buildozer android debug
 
     - name: Upload APK
