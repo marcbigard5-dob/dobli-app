@@ -1,46 +1,42 @@
-name: CI
+name: Build Android APK
 on:
   push:
-    branches: [ principal ]
-  pull_request:
-    branches: [ principal ]
+    branches: [ principal, main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Code de récupération avec sous-modules
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           submodules: 'recursive'
 
-      - name: Configurer Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Installer les dépendances système
+      - name: Install system dependencies
         run: |
           sudo apt update
           sudo apt install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses-dev libtinfo6 cmake libffi-dev libssl-dev
 
-      - name: Installez Buildozer et Cython
+      - name: Install Buildozer and Cython
         run: |
-          pip install --upgrade pip
-          pip install buildozer cython
+          pip install --upgrade pip setuptools wheel
+          pip install "cython<3.0.0" buildozer
 
-      - name: Générez un APK avec Buildozer
+      - name: Build APK with Buildozer
         run: |
           yes | buildozer android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
           BUILD_NUMBER: ${{ github.run_number }}
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
-      - name: Téléverser un fichier APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: application-Kivy
+          name: application-apk
           path: bin/*.apk
-          
