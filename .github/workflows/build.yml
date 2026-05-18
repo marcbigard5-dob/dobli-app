@@ -44,4 +44,3 @@ jobs:
           name: application-Kivy
           path: bin/*.apk
           
-    
