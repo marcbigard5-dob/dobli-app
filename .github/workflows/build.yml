@@ -28,6 +28,15 @@ jobs:
           pip install --upgrade pip setuptools wheel
           pip install "cython<3.0.0" buildozer
 
+      - name: Auto-correct buildozer.spec config
+        run: |
+          if [ -f buildozer.spec ]; then
+            # إجبار متطلبات بايثون القياسية المتوافقة مع البيئة الحالية لمنع كسر الأنبوب
+            sed -i 's/^requirements =.*/requirements = python3,kivy/' buildozer.spec
+            # تفعيل قبول رخص الـ SDK تلقائياً داخل الإعدادات
+            sed -i 's/^# android.accept_sdk_license =.*/android.accept_sdk_license = False/' buildozer.spec
+          fi
+
       - name: Build APK with Buildozer
         run: |
           yes | buildozer android debug
