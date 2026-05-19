@@ -1,4 +1,4 @@
-name: Build Android APK
+Name: Build Android APK
 
 on:
   push:
@@ -38,11 +38,11 @@ jobs:
           echo "ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_HOME=$GITHUB_WORKSPACE/android-sdk" >> $GITHUB_ENV
           
-          # قبول التراخيص (تتم بشكل صامت)
-          yes | sdkmanager --licenses > /dev/null 2>&1
+          # قبول التراخيص (تتم بشكل صامت) - تم إصلاح المسار هنا
+          yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses --sdk_root=android-sdk > /dev/null 2>&1
           
-          # تثبيت build-tools بالإصدار 34.0.0 (يحتوي على AIDL)
-          sdkmanager "build-tools;34.0.0" > /dev/null
+          # تثبيت build-tools بالإصدار 34.0.0 (يحتوي على AIDL) - تم إصلاح المسار هنا
+          android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=android-sdk "build-tools;34.0.0" > /dev/null
           
           # التحقق من وجود AIDL (سيعرض المسار إذا نجح)
           find $ANDROID_HOME -name "aidl" -type f
