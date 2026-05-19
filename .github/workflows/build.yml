@@ -2,208 +2,119 @@ name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
-
+    branches: [ main, principal ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-
     steps:
-
-      # ---------------------------------
-      # Checkout
-      # ---------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ---------------------------------
-      # Python
-      # ---------------------------------
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: '3.10'
 
-      # ---------------------------------
-      # Java 17
-      # ---------------------------------
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      # ---------------------------------
-      # Linux packages
-      # ---------------------------------
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt update
+          sudo apt install -y git zip unzip openjdk-17-jdk \
+            autoconf libtool pkg-config zlib1g-dev libncurses-dev \
+            libtinfo6 cmake libffi-dev libssl-dev
 
-          sudo apt install -y \
-            git \
-            zip \
-            unzip \
-            openjdk-17-jdk \
-            autoconf \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libncurses5-dev \
-            libncursesw5-dev \
-            cmake \
-            libffi-dev \
-            libssl-dev \
-            build-essential \
-            ccache
-
-      # ---------------------------------
-      # Android SDK
-      # ---------------------------------
-      - name: Install Android SDK
+      # --- تعديل المسار هنا ليطابق مسار Buildozer الافتراضي تماماً ---
+      - name: Install Android SDK and AIDL
         run: |
-
-          mkdir -p $HOME/android-sdk/cmdline-tools
-
-          cd $HOME
-
+          # إنشاء المسار الذي تبحث فيه أداة Buildozer مباشرة
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk
+          cd /home/runner/.buildozer/android/platform
+          
+          # تحميل Android SDK Command-line Tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-
           unzip -q commandlinetools-linux-11076708_latest.zip
+          mkdir -p android-sdk/cmdline-tools
+          mv cmdline-tools android-sdk/cmdline-tools/latest
+          
+          # تعيين متغيرات البيئة للمسار الجديد
+          echo "/home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "ANDROID_SDK_ROOT=/home/runner/.buildozer/android/platform/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_HOME=/home/runner/.buildozer/android/platform/android-sdk" >> $GITHUB_ENV
+          
+          # قبول التراخيص داخل المسار الجديد
+          yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses --sdk_root=android-sdk > /dev/null 2>&1
+          
+          # تثبيت build-tools بالإصدار 34.0.0 الذي يحتوي على أداة AIDL المطلوبة
+          android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=android-sdk "build-tools;34.0.0" > /dev/null
+          
+          # التحقق من وجود AIDL للتأكد
+          find android-sdk -name "aidl" -type f
+      # ---------------------------------------------------------
 
-          mkdir -p $HOME/android-sdk/cmdline-tools/latest
-
-          mv cmdline-tools/* $HOME/android-sdk/cmdline-tools/latest/
-
-          export ANDROID_HOME=$HOME/android-sdk
-          export ANDROID_SDK_ROOT=$HOME/android-sdk
-
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
-          export PATH=$PATH:$ANDROID_HOME/platform-tools
-
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-
-          yes | sdkmanager --licenses || true
-
-          sdkmanager \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;33.0.2"
-
-          # التأكد من وجود AIDL
-          find $HOME/android-sdk -name aidl
-
-      # ---------------------------------
-      # Android NDK
-      # ---------------------------------
-      - name: Install Android NDK
+      - name: Force NDK 23b
         run: |
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/27.3.13750724
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/29.0.14206865
+          sudo mkdir -p /usr/local/lib/android/sdk/ndk/
+          cd /tmp
+          wget -q https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
+          unzip -q android-ndk-r23b-linux.zip
+          sudo mv android-ndk-r23b /usr/local/lib/android/sdk/ndk/
+          echo "ANDROID_NDK=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
 
-          cd $HOME
-
-          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-
-          unzip -q android-ndk-r25b-linux.zip
-
-          echo "ANDROID_NDK_HOME=$HOME/android-ndk-r25b" >> $GITHUB_ENV
-          echo "ANDROID_NDK_ROOT=$HOME/android-ndk-r25b" >> $GITHUB_ENV
-          echo "ANDROID_NDK=$HOME/android-ndk-r25b" >> $GITHUB_ENV
-
-      # ---------------------------------
-      # Install Buildozer
-      # ---------------------------------
       - name: Install Buildozer
         run: |
+          pip install --upgrade pip
+          pip install Cython==0.29.33
+          pip install buildozer
 
-          python -m pip install --upgrade pip
-
-          pip install cython==0.29.33
-
-          pip install buildozer==1.5.0
-
-      # ---------------------------------
-      # Create buildozer.spec
-      # ---------------------------------
       - name: Create buildozer.spec
         run: |
+          echo '[app]' > buildozer.spec
+          echo 'title = Dobl App' >> buildozer.spec
+          echo 'package.name = dobli' >> buildozer.spec
+          echo 'package.domain = com.marcbigard5' >> buildozer.spec
+          echo 'source.dir = .' >> buildozer.spec
+          echo 'source.include_exts = py,png,jpg,kv,atlas' >> buildozer.spec
+          echo 'version = 0.1' >> buildozer.spec
+          echo 'requirements = python3==3.10.0,kivy==2.2.1,cython==0.29.33,pyjnius==1.5.0,plyer,certifi,requests' >> buildozer.spec
+          echo 'orientation = portrait' >> buildozer.spec
+          echo 'osx.python_version = 3' >> buildozer.spec
+          echo 'osx.kivy_version = 2.2.1' >> buildozer.spec
+          echo 'fullscreen = 0' >> buildozer.spec
+          echo '' >> buildozer.spec
+          echo '[buildozer]' >> buildozer.spec
+          echo 'log_level = 2' >> buildozer.spec
+          echo 'warn_on_root = 1' >> buildozer.spec
+          echo '' >> buildozer.spec
+          echo 'android.accept_sdk_license = True' >> buildozer.spec
+          echo 'android.ndk = 23b' >> buildozer.spec
+          echo 'android.sdk = 30' >> buildozer.spec
+          echo 'android.api = 30' >> buildozer.spec
+          echo 'android.minapi = 21' >> buildozer.spec
+          echo 'android.ndk_api = 21' >> buildozer.spec
+          echo 'android.archs = arm64-v8a, armeabi-v7a' >> buildozer.spec
+          echo 'android.allow_backup = True' >> buildozer.spec
+          echo 'android.permissions = INTERNET' >> buildozer.spec
 
-          cat > buildozer.spec <<EOF
-          [app]
-
-          title = Dobl App
-
-          package.name = dobli
-          package.domain = com.marcbigard5
-
-          source.dir = .
-          source.include_exts = py,png,jpg,kv,atlas
-
-          version = 0.1
-
-          requirements = python3,kivy==2.1.0,cython==0.29.33,plyer,requests,certifi
-
-          orientation = portrait
-
-          fullscreen = 0
-
-          android.api = 33
-          android.minapi = 21
-
-          android.sdk = 33
-
-          android.ndk = 25b
-          android.ndk_api = 21
-
-          android.archs = arm64-v8a, armeabi-v7a
-
-          android.permissions = INTERNET
-
-          # مهم جداً
-          android.build_tools_version = 33.0.2
-
-          p4a.branch = master
-
-          [buildozer]
-
-          log_level = 2
-          warn_on_root = 1
-          EOF
-
-      # ---------------------------------
-      # Build APK
-      # ---------------------------------
       - name: Build APK
         run: |
+          export ANDROID_NDK=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
+          export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
+          export ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
+          export ANDROID_SDK_ROOT=/home/runner/.buildozer/android/platform/android-sdk
+          export ANDROID_HOME=/home/runner/.buildozer/android/platform/android-sdk
+          export ANDROID_ACCEPT_SDK_LICENSE=yes
+          export P4A_IGNORE_MINSDK_NDK_API_MISMATCH=1
+          # إزالة التصفير الكامل لـ .buildozer حتى لا يحذف الـ SDK الذي ثبتناه يدوياً
+          buildozer -v android debug
 
-          export ANDROID_HOME=$HOME/android-sdk
-          export ANDROID_SDK_ROOT=$HOME/android-sdk
-
-          export ANDROID_NDK_HOME=$HOME/android-ndk-r25b
-          export ANDROID_NDK_ROOT=$HOME/android-ndk-r25b
-          export ANDROID_NDK=$HOME/android-ndk-r25b
-
-          export PATH=$PATH:$ANDROID_HOME/build-tools/33.0.2
-
-          rm -rf .buildozer
-          rm -rf ~/.buildozer
-
-          # تأكيد وجود aidl
-          find $ANDROID_HOME -name aidl
-
-          buildozer android debug
-
-      # ---------------------------------
-      # Upload APK
-      # ---------------------------------
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: application-apk
           path: bin/*.apk
+          if-no-files-found: warn
