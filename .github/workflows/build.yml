@@ -35,14 +35,14 @@ jobs:
             # Fix requirements
             sed -i 's/^requirements =.*/requirements = python3==3.10.0,kivy==2.2.1,plyer,pyjnius,certifi,requests/' buildozer.spec
             
-            # Force NDK version to stable r23b (compatible with p4a)
+            # Force NDK version to stable r23b
             sed -i 's/^# android.ndk_version =.*/android.ndk_version = 23b/' buildozer.spec
             sed -i 's/^android.ndk =.*/android.ndk = 23b/' buildozer.spec
             
             # Force SDK version
-            sed -i 's/^android.sdk_version =.*/android.sdk_version = 30/' buildozer.sdk_version = 30/g' buildozer.spec
+            sed -i 's/^android.sdk_version =.*/android.sdk_version = 30/' buildozer.spec
             
-            # Enable AndroidX and permissions
+            # Set API levels
             sed -i 's/^android.api =.*/android.api = 30/' buildozer.spec
             sed -i 's/^android.minapi =.*/android.minapi = 21/' buildozer.spec
             sed -i 's/^# android.ndk_api =.*/android.ndk_api = 21/' buildozer.spec
@@ -51,6 +51,7 @@ jobs:
             sed -i 's/^# android.accept_sdk_license =.*/android.accept_sdk_license = True/' buildozer.spec
             
             echo "buildozer.spec updated successfully"
+            cat buildozer.spec
           else
             echo "buildozer.spec not found!"
             exit 1
@@ -58,16 +59,11 @@ jobs:
 
       - name: Build APK with Buildozer
         run: |
-          # Force SDK/NDK environment variables
           export ANDROID_ACCEPT_SDK_LICENSE=yes
-          export P4A_IGNORE_MINSDK_NDK_API_MISMATCH=1
-          
-          # Build with auto yes and force allow mismatch
           yes | buildozer android debug -- --allow-minsdk-ndkapi-mismatch
         env:
           ANDROID_ACCEPT_SDK_LICENSE: 'yes'
           BUILD_NUMBER: ${{ github.run_number }}
-          P4A_VERBOSE: '1'
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
