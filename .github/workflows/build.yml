@@ -1,4 +1,5 @@
 name: Build Android APK
+
 on:
   push:
     branches: [ principal, main ]
@@ -28,24 +29,49 @@ jobs:
           pip install --upgrade pip setuptools wheel
           pip install "cython<3.0.0" buildozer
 
-      - name: Auto-correct buildozer.spec config
+      - name: Fix buildozer.spec configuration
         run: |
           if [ -f buildozer.spec ]; then
-            # إجبار متطلبات بايثون القياسية المتوافقة مع البيئة الحالية لمنع كسر الأنبوب
-            sed -i 's/^requirements =.*/requirements = python3,kivy/' buildozer.spec
-            # تفعيل قبول رخص الـ SDK تلقائياً داخل الإعدادات
-            sed -i 's/^# android.accept_sdk_license =.*/android.accept_sdk_license = False/' buildozer.spec
+            # Fix requirements
+            sed -i 's/^requirements =.*/requirements = python3==3.10.0,kivy==2.2.1,plyer,pyjnius,certifi,requests/' buildozer.spec
+            
+            # Force NDK version to stable r23b (compatible with p4a)
+            sed -i 's/^# android.ndk_version =.*/android.ndk_version = 23b/' buildozer.spec
+            sed -i 's/^android.ndk =.*/android.ndk = 23b/' buildozer.spec
+            
+            # Force SDK version
+            sed -i 's/^android.sdk_version =.*/android.sdk_version = 30/' buildozer.sdk_version = 30/g' buildozer.spec
+            
+            # Enable AndroidX and permissions
+            sed -i 's/^android.api =.*/android.api = 30/' buildozer.spec
+            sed -i 's/^android.minapi =.*/android.minapi = 21/' buildozer.spec
+            sed -i 's/^# android.ndk_api =.*/android.ndk_api = 21/' buildozer.spec
+            
+            # Accept SDK license automatically
+            sed -i 's/^# android.accept_sdk_license =.*/android.accept_sdk_license = True/' buildozer.spec
+            
+            echo "buildozer.spec updated successfully"
+          else
+            echo "buildozer.spec not found!"
+            exit 1
           fi
 
       - name: Build APK with Buildozer
         run: |
-          yes | buildozer android debug
+          # Force SDK/NDK environment variables
+          export ANDROID_ACCEPT_SDK_LICENSE=yes
+          export P4A_IGNORE_MINSDK_NDK_API_MISMATCH=1
+          
+          # Build with auto yes and force allow mismatch
+          yes | buildozer android debug -- --allow-minsdk-ndkapi-mismatch
         env:
-          APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
+          ANDROID_ACCEPT_SDK_LICENSE: 'yes'
           BUILD_NUMBER: ${{ github.run_number }}
+          P4A_VERBOSE: '1'
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: application-apk
           path: bin/*.apk
+          if-no-files-found: warn
