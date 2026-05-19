@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ principal, main ]
+    branches: [ main, principal ]
   workflow_dispatch:
 
 jobs:
@@ -11,8 +11,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -22,65 +20,46 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses-dev libtinfo6 cmake libffi-dev libssl-dev
+          sudo apt install -y git zip unzip openjdk-17-jdk \
+            autoconf libtool pkg-config zlib1g-dev libncurses-dev \
+            libtinfo6 cmake libffi-dev libssl-dev
 
-      - name: Force NDK 23b (remove newer NDKs)
+      - name: Install Cython and Buildozer
         run: |
-          # Remove problematic NDK versions
-          sudo rm -rf /usr/local/lib/android/sdk/ndk/27.3.13750724 || true
-          sudo rm -rf /usr/local/lib/android/sdk/ndk/29.0.14206865 || true
-          
-          # Download and install NDK r23b manually
-          cd /tmp
-          wget -q https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
-          unzip -q android-ndk-r23b-linux.zip
-          sudo mkdir -p /usr/local/lib/android/sdk/ndk
-          sudo mv android-ndk-r23b /usr/local/lib/android/sdk/ndk/
-          
-          # Set environment variables
-          echo "ANDROID_NDK=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
-          echo "ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
-          
-          echo "NDK 23b installed successfully"
-
-      - name: Install Buildozer and Cython
-        run: |
-          pip install --upgrade pip setuptools wheel
-          pip install "cython<3.0.0" buildozer
+          pip install --upgrade pip
+          pip install Cython==0.29.33
+          pip install buildozer
 
       - name: Configure buildozer.spec
         run: |
-          # Create buildozer.spec if it doesn't exist
+          # إنشاء ملف الإعدادات إذا لم يكن موجوداً
           if [ ! -f buildozer.spec ]; then
             buildozer init
           fi
           
-          # Update spec file
-          sed -i 's/^requirements =.*/requirements = python3==3.10.0,kivy==2.2.1,plyer,pyjnius,certifi,requests/' buildozer.spec
+          # تحديث الإعدادات
+          sed -i 's/^requirements =.*/requirements = python3==3.10.0,kivy==2.2.1,cython==0.29.33,pyjnius==1.5.0,plyer,certifi,requests/' buildozer.spec
+          sed -i 's/^android.accept_sdk_license =.*/android.accept_sdk_license = True/' buildozer.spec
           sed -i 's/^android.ndk =.*/android.ndk = 23b/' buildozer.spec
           sed -i 's/^android.sdk =.*/android.sdk = 30/' buildozer.spec
           sed -i 's/^android.api =.*/android.api = 30/' buildozer.spec
           sed -i 's/^android.minapi =.*/android.minapi = 21/' buildozer.spec
-          sed -i 's/^android.accept_sdk_license =.*/android.accept_sdk_license = True/' buildozer.spec
           
-          echo "buildozer.spec configured"
+          # منع تكرار --ndk-api
+          sed -i '/^android.ndk_api/d' buildozer.spec
+          echo "android.ndk_api = 21" >> buildozer.spec
+          
+          echo "=== buildozer.spec بعد التعديل ==="
+          cat buildozer.spec
 
-      - name: Build APK
+      - name: Build APK (بدون yes command)
         run: |
-          # Force correct NDK path
-          export ANDROID_NDK=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
-          export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
-          export ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
-          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
-          export ANDROID_HOME=/usr/local/lib/android/sdk
+          # تعيين متغيرات البيئة يدوياً
           export ANDROID_ACCEPT_SDK_LICENSE=yes
+          export P4A_IGNORE_MINSDK_NDK_API_MISMATCH=1
           
-          # Clean previous builds
-          rm -rf .buildozer
-          
-          # Build
-          yes | buildozer -v android debug
+          # استخدام echo بدلاً من yes لتجنب Broken pipe
+          echo y | buildozer -v android debug 2>&1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
