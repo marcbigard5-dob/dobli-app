@@ -20,7 +20,33 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses-dev libtinfo6 cmake libffi-dev libssl-dev
+          sudo apt install -y git zip unzip openjdk-17-jdk \
+            autoconf libtool pkg-config zlib1g-dev libncurses-dev \
+            libtinfo6 cmake libffi-dev libssl-dev
+
+      # --- القسم المهم: تثبيت Android SDK وأداة AIDL يدوياً ---
+      - name: Install Android SDK and AIDL
+        run: |
+          # تحميل Android SDK Command-line Tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip
+          mkdir -p android-sdk/cmdline-tools
+          mv cmdline-tools android-sdk/cmdline-tools/latest
+          
+          # تعيين متغيرات البيئة
+          echo "$GITHUB_WORKSPACE/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$GITHUB_WORKSPACE/android-sdk" >> $GITHUB_ENV
+          
+          # قبول التراخيص (تتم بشكل صامت)
+          yes | sdkmanager --licenses > /dev/null 2>&1
+          
+          # تثبيت build-tools بالإصدار 34.0.0 (يحتوي على AIDL)
+          sdkmanager "build-tools;34.0.0" > /dev/null
+          
+          # التحقق من وجود AIDL (سيعرض المسار إذا نجح)
+          find $ANDROID_HOME -name "aidl" -type f
+      # ---------------------------------------------------------
 
       - name: Force NDK 23b
         run: |
@@ -75,8 +101,8 @@ jobs:
           export ANDROID_NDK=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
           export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
           export ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
-          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
-          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk
+          export ANDROID_HOME=$GITHUB_WORKSPACE/android-sdk
           export ANDROID_ACCEPT_SDK_LICENSE=yes
           export P4A_IGNORE_MINSDK_NDK_API_MISMATCH=1
           rm -rf .buildozer
