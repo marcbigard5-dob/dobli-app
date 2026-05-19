@@ -26,25 +26,16 @@ jobs:
 
       - name: Force remove NDK 27 and use NDK 23b
         run: |
-          # حذف NDK 27 و 29 نهائياً
           sudo rm -rf /usr/local/lib/android/sdk/ndk/27.3.13750724
           sudo rm -rf /usr/local/lib/android/sdk/ndk/29.0.14206865
-          
-          # إنشاء مجلد NDK 23b إذا لم يكن موجوداً
           sudo mkdir -p /usr/local/lib/android/sdk/ndk/
-          
-          # تحميل وتثبيت NDK 23b
           cd /tmp
           wget -q https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
           unzip -q android-ndk-r23b-linux.zip
           sudo mv android-ndk-r23b /usr/local/lib/android/sdk/ndk/
-          
-          # إجبار جميع متغيرات البيئة
           echo "ANDROID_NDK=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
           echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
           echo "ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
-          
-          echo "✅ NDK 23b installed and forced"
 
       - name: Install Buildozer
         run: |
@@ -54,42 +45,38 @@ jobs:
 
       - name: Create buildozer.spec
         run: |
-          # إنشاء ملف الإعدادات
-          cat > buildozer.spec << 'EOF'
-[app]
-title = Dobl App
-package.name = dobli
-package.domain = com.marcbigard5
-source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
-version = 0.1
-requirements = python3==3.10.0,kivy==2.2.1,cython==0.29.33,pyjnius==1.5.0,plyer,certifi,requests
-orientation = portrait
-osx.python_version = 3
-osx.kivy_version = 2.2.1
-fullscreen = 0
-
-[buildozer]
-log_level = 2
-warn_on_root = 1
-
-[app]
-android.accept_sdk_license = True
-android.ndk = 23b
-android.sdk = 30
-android.api = 30
-android.minapi = 21
-android.ndk_api = 21
-android.archs = arm64-v8a, armeabi-v7a
-android.allow_backup = True
-android.permissions = INTERNET
-EOF
+          echo '[app]' > buildozer.spec
+          echo 'title = Dobl App' >> buildozer.spec
+          echo 'package.name = dobli' >> buildozer.spec
+          echo 'package.domain = com.marcbigard5' >> buildozer.spec
+          echo 'source.dir = .' >> buildozer.spec
+          echo 'source.include_exts = py,png,jpg,kv,atlas' >> buildozer.spec
+          echo 'version = 0.1' >> buildozer.spec
+          echo 'requirements = python3==3.10.0,kivy==2.2.1,cython==0.29.33,pyjnius==1.5.0,plyer,certifi,requests' >> buildozer.spec
+          echo 'orientation = portrait' >> buildozer.spec
+          echo 'osx.python_version = 3' >> buildozer.spec
+          echo 'osx.kivy_version = 2.2.1' >> buildozer.spec
+          echo 'fullscreen = 0' >> buildozer.spec
+          echo '' >> buildozer.spec
+          echo '[buildozer]' >> buildozer.spec
+          echo 'log_level = 2' >> buildozer.spec
+          echo 'warn_on_root = 1' >> buildozer.spec
+          echo '' >> buildozer.spec
+          echo '[app]' >> buildozer.spec
+          echo 'android.accept_sdk_license = True' >> buildozer.spec
+          echo 'android.ndk = 23b' >> buildozer.spec
+          echo 'android.sdk = 30' >> buildozer.spec
+          echo 'android.api = 30' >> buildozer.spec
+          echo 'android.minapi = 21' >> buildozer.spec
+          echo 'android.ndk_api = 21' >> buildozer.spec
+          echo 'android.archs = arm64-v8a, armeabi-v7a' >> buildozer.spec
+          echo 'android.allow_backup = True' >> buildozer.spec
+          echo 'android.permissions = INTERNET' >> buildozer.spec
           
           cat buildozer.spec
 
       - name: Build APK
         run: |
-          # إجبار جميع المتغيرات قبل البناء
           export ANDROID_NDK=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
           export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
           export ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
@@ -98,10 +85,7 @@ EOF
           export ANDROID_ACCEPT_SDK_LICENSE=yes
           export P4A_IGNORE_MINSDK_NDK_API_MISMATCH=1
           
-          # تنظيف البناء السابق
           rm -rf .buildozer
-          
-          # بناء التطبيق
           buildozer -v android debug
 
       - name: Upload APK
