@@ -24,42 +24,85 @@ jobs:
             autoconf libtool pkg-config zlib1g-dev libncurses-dev \
             libtinfo6 cmake libffi-dev libssl-dev
 
-      - name: Install Cython and Buildozer
+      - name: Force remove NDK 27 and use NDK 23b
+        run: |
+          # حذف NDK 27 و 29 نهائياً
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/27.3.13750724
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/29.0.14206865
+          
+          # إنشاء مجلد NDK 23b إذا لم يكن موجوداً
+          sudo mkdir -p /usr/local/lib/android/sdk/ndk/
+          
+          # تحميل وتثبيت NDK 23b
+          cd /tmp
+          wget -q https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
+          unzip -q android-ndk-r23b-linux.zip
+          sudo mv android-ndk-r23b /usr/local/lib/android/sdk/ndk/
+          
+          # إجبار جميع متغيرات البيئة
+          echo "ANDROID_NDK=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk/android-ndk-r23b" >> $GITHUB_ENV
+          
+          echo "✅ NDK 23b installed and forced"
+
+      - name: Install Buildozer
         run: |
           pip install --upgrade pip
           pip install Cython==0.29.33
           pip install buildozer
 
-      - name: Configure buildozer.spec
+      - name: Create buildozer.spec
         run: |
-          # إنشاء ملف الإعدادات إذا لم يكن موجوداً
-          if [ ! -f buildozer.spec ]; then
-            buildozer init
-          fi
+          # إنشاء ملف الإعدادات
+          cat > buildozer.spec << 'EOF'
+[app]
+title = Dobl App
+package.name = dobli
+package.domain = com.marcbigard5
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas
+version = 0.1
+requirements = python3==3.10.0,kivy==2.2.1,cython==0.29.33,pyjnius==1.5.0,plyer,certifi,requests
+orientation = portrait
+osx.python_version = 3
+osx.kivy_version = 2.2.1
+fullscreen = 0
+
+[buildozer]
+log_level = 2
+warn_on_root = 1
+
+[app]
+android.accept_sdk_license = True
+android.ndk = 23b
+android.sdk = 30
+android.api = 30
+android.minapi = 21
+android.ndk_api = 21
+android.archs = arm64-v8a, armeabi-v7a
+android.allow_backup = True
+android.permissions = INTERNET
+EOF
           
-          # تحديث الإعدادات
-          sed -i 's/^requirements =.*/requirements = python3==3.10.0,kivy==2.2.1,cython==0.29.33,pyjnius==1.5.0,plyer,certifi,requests/' buildozer.spec
-          sed -i 's/^android.accept_sdk_license =.*/android.accept_sdk_license = True/' buildozer.spec
-          sed -i 's/^android.ndk =.*/android.ndk = 23b/' buildozer.spec
-          sed -i 's/^android.sdk =.*/android.sdk = 30/' buildozer.spec
-          sed -i 's/^android.api =.*/android.api = 30/' buildozer.spec
-          sed -i 's/^android.minapi =.*/android.minapi = 21/' buildozer.spec
-          
-          # منع تكرار --ndk-api
-          sed -i '/^android.ndk_api/d' buildozer.spec
-          echo "android.ndk_api = 21" >> buildozer.spec
-          
-          echo "=== buildozer.spec بعد التعديل ==="
           cat buildozer.spec
 
-      - name: Build APK (بدون yes command)
+      - name: Build APK
         run: |
-          # تعيين متغيرات البيئة يدوياً
+          # إجبار جميع المتغيرات قبل البناء
+          export ANDROID_NDK=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
+          export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
+          export ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk/android-ndk-r23b
+          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+          export ANDROID_HOME=/usr/local/lib/android/sdk
           export ANDROID_ACCEPT_SDK_LICENSE=yes
           export P4A_IGNORE_MINSDK_NDK_API_MISMATCH=1
           
-          # استخدام echo بدلاً من yes لتجنب Broken pipe
-          echo y | buildozer -v android debug 2>&1
+          # تنظيف البناء السابق
+          rm -rf .buildozer
+          
+          # بناء التطبيق
+          buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
