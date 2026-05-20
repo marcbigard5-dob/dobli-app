@@ -2,8 +2,8 @@ name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, principal ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -11,95 +11,47 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    - name: Set up Java
-      uses: actions/setup-java@v4
+    - name: Setup Java JDK
+      uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Install system dependencies
+    - name: Install System Dependencies
       run: |
-        sudo apt update
-
-        sudo apt install -y \
-          zip \
-          unzip \
-          openjdk-17-jdk \
-          autoconf \
-          libtool \
-          pkg-config \
-          zlib1g-dev \
-          libncurses5-dev \
-          libncursesw5-dev \
-          libtinfo5 \
-          cmake \
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          build-essential \
+          ccache \
+          git \
           libffi-dev \
           libssl-dev \
-          build-essential \
-          git \
-          python3-pip \
-          wget
+          libgstreamer1.0-dev \
+          gstreamer1.0-plugins-base \
+          gstreamer1.0-plugins-good \
+          gstreamer1.0-plugins-bad \
+          gstreamer1.0-plugins-ugly \
+          gstreamer1.0-libav \
+          libgstreamer-plugins-base1.0-dev \
+          pkg-config \
+          python3-dev \
+          autoconf \
+          automake \
+          libtool \
+          unzip \
+          zip \
+          zlib1g-dev
 
-    - name: Install Android SDK
-      run: |
-        mkdir -p $HOME/android-sdk/cmdline-tools
-        cd $HOME/android-sdk
-
-        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-
-        unzip -q commandlinetools-linux-11076708_latest.zip
-
-        mv cmdline-tools latest
-        mkdir -p cmdline-tools
-        mv latest cmdline-tools/latest
-
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-
-        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-
-    - name: Accept SDK licenses
-      run: |
-        yes | sdkmanager --licenses
-
-    - name: Install SDK packages
-      run: |
-        sdkmanager \
-          "platform-tools" \
-          "platforms;android-34" \
-          "build-tools;34.0.0"
-
-    - name: Install Android NDK 25b
-      run: |
-        cd $HOME
-
-        wget https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-
-        unzip -q android-ndk-r25b-linux.zip
-
-        echo "ANDROID_NDK_HOME=$HOME/android-ndk-r25b" >> $GITHUB_ENV
-        echo "ANDROID_NDK_ROOT=$HOME/android-ndk-r25b" >> $GITHUB_ENV
-        echo "ANDROID_NDK=$HOME/android-ndk-r25b" >> $GITHUB_ENV
-
-    - name: Install Buildozer
-      run: |
-        pip install --upgrade pip
-        pip install buildozer cython==0.29.36
-
-    - name: Build APK
-      run: |
-        buildozer android debug
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
+    - name: Build with Buildozer
+      uses: ArtemGovorov/buildozer-action@v1
       with:
-        name: APK
+        command: buildozer android debug
+        repository_root: .
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: Dobli-APK
         path: bin/*.apk
