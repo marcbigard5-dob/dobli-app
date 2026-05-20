@@ -33,13 +33,6 @@ jobs:
           git \
           libffi-dev \
           libssl-dev \
-          libgstreamer1.0-dev \
-          gstreamer1.0-plugins-base \
-          gstreamer1.0-plugins-good \
-          gstreamer1.0-plugins-bad \
-          gstreamer1.0-plugins-ugly \
-          gstreamer1.0-libav \
-          libgstreamer-plugins-base1.0-dev \
           pkg-config \
           python3-dev \
           autoconf \
@@ -58,7 +51,6 @@ jobs:
       run: |
         buildozer android debug
       env:
-        # لتفادي توقف البناء في حال طلب السكربت أي مدخلات تفاعلية
         BUILDOZER_ALLOW_KIVY_NEW_DESIGN: 1
 
     - name: Upload APK Artifact
