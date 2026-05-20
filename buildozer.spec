@@ -19,8 +19,7 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
 
 # (list) Application requirements
-# تمت إضافة aiohttp بناء على ملف requirements.txt الخاص بك وتثبيت إصدارات متوافقة
-requirements = python3==3.10.11,kivy==2.3.0,aiohttp>=3.9.0
+requirements = python3==3.10.11,kivy==2.3.0
 
 # (string) Supported orientations
 orientation = portrait
@@ -32,17 +31,17 @@ fullscreen = 0
 # Android specific configuration
 # ==============================================================================
 
-# (int) Target Android API (تحديث ليتوافق مع المعايير الحديثة)
-android.api = 34
+# (int) Target Android API
+android.api = 33
 
 # (int) Minimum API your APK will support.
-android.minapi = 24
+android.minapi = 21
 
 # (int) Android SDK version to use
-android.sdk = 34
+android.sdk = 33
 
-# (str) Android NDK version to use (الإصدار الأكثر استقراراً لمعمارية 34)
-android.ndk = 26b
+# (str) Android NDK version to use
+android.ndk = 25c
 
 # (int) Android NDK API to use
 android.ndk_api = 21
@@ -55,9 +54,6 @@ android.archs = arm64-v8a, armeabi-v7a
 
 # (bool) Allow backup
 android.allow_backup = True
-
-# (str) python-for-android branch to use (تثبيت فرع مستقر يمنع انهيار خطوة Compile platform)
-p4a.branch = release-2024.01.21
 
 # (list) Permissions
 android.permissions = INTERNET
